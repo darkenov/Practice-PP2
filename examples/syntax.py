@@ -1,2 +1,2 @@
-if 5 > 2:
-  print("Five is greater than two!")
+if 4 > 2:
+  print("Four is greater than two!")
