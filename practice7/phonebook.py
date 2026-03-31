@@ -3,241 +3,162 @@ from connect import connect
 
 
 def create_table():
-    query = """
-    CREATE TABLE IF NOT EXISTS phonebook (
-        id SERIAL PRIMARY KEY,
-        username VARCHAR(100) NOT NULL,
-        phone VARCHAR(20) NOT NULL UNIQUE
-    )
-    """
+    with connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS phonebook (
+                    id SERIAL PRIMARY KEY,
+                    username VARCHAR(100),
+                    phone VARCHAR(20) UNIQUE
+                )
+            """)
+
+
+def add_contact():
+    username = input("Введите имя: ")
+    phone = input("Введите телефон: ")
 
     with connect() as conn:
         with conn.cursor() as cur:
-            cur.execute(query)
+            cur.execute(
+                "INSERT INTO phonebook (username, phone) VALUES (%s, %s)",
+                (username, phone)
+            )
 
-    print("Таблица phonebook создана или уже существует.")
-
-
-def insert_from_console():
-    username = input("Введите имя: ").strip()
-    phone = input("Введите номер телефона: ").strip()
-
-    if username == "" or phone == "":
-        print("Имя и телефон не должны быть пустыми.")
-        return
-
-    query = """
-    INSERT INTO phonebook (username, phone)
-    VALUES (%s, %s)
-    """
-
-    with connect() as conn:
-        with conn.cursor() as cur:
-            cur.execute(query, (username, phone))
-
-    print("Контакт добавлен.")
+    print("Контакт добавлен")
 
 
 def insert_from_csv():
-    query = """
-    INSERT INTO phonebook (username, phone)
-    VALUES (%s, %s)
-    """
-
     with connect() as conn:
         with conn.cursor() as cur:
-            with open("contacts.csv", "r", encoding="utf-8") as file:
-                reader = csv.reader(file)
-                next(reader)
+            file = open("contacts.csv", "r")
+            reader = csv.reader(file)
+            next(reader)
 
-                for row in reader:
-                    username = row[0].strip()
-                    phone = row[1].strip()
+            for row in reader:
+                cur.execute(
+                    "INSERT INTO phonebook (username, phone) VALUES (%s, %s)",
+                    (row[0], row[1])
+                )
 
-                    if username != "" and phone != "":
-                        cur.execute(query, (username, phone))
+            file.close()
 
-    print("Данные из CSV загружены.")
+    print("Данные из CSV загружены")
 
 
 def show_all_contacts():
-    query = "SELECT * FROM phonebook ORDER BY id"
-
     with connect() as conn:
         with conn.cursor() as cur:
-            cur.execute(query)
+            cur.execute("SELECT * FROM phonebook ORDER BY id")
             rows = cur.fetchall()
 
-    if rows:
-        print("\nВсе контакты:")
+    if len(rows) == 0:
+        print("Телефонная книга пуста")
+    else:
         for row in rows:
             print(row)
-    else:
-        print("Телефонная книга пуста.")
 
 
 def search_by_name():
-    name = input("Введите имя или часть имени: ").strip()
-
-    if name == "":
-        print("Поле поиска не должно быть пустым.")
-        return
-
-    query = """
-    SELECT * FROM phonebook
-    WHERE username ILIKE %s
-    ORDER BY id
-    """
+    name = input("Введите имя: ")
 
     with connect() as conn:
         with conn.cursor() as cur:
-            cur.execute(query, ("%" + name + "%",))
+            cur.execute(
+                "SELECT * FROM phonebook WHERE username ILIKE %s",
+                ("%" + name + "%",)
+            )
             rows = cur.fetchall()
 
-    if rows:
-        print("\nРезультаты поиска:")
-        for row in rows:
-            print(row)
-    else:
-        print("Ничего не найдено.")
+    for row in rows:
+        print(row)
 
 
 def search_by_phone_prefix():
-    prefix = input("Введите начало номера: ").strip()
-
-    if prefix == "":
-        print("Префикс не должен быть пустым.")
-        return
-
-    query = """
-    SELECT * FROM phonebook
-    WHERE phone LIKE %s
-    ORDER BY id
-    """
+    prefix = input("Введите начало номера: ")
 
     with connect() as conn:
         with conn.cursor() as cur:
-            cur.execute(query, (prefix + "%",))
+            cur.execute(
+                "SELECT * FROM phonebook WHERE phone LIKE %s",
+                (prefix + "%",)
+            )
             rows = cur.fetchall()
 
-    if rows:
-        print("\nРезультаты поиска:")
-        for row in rows:
-            print(row)
-    else:
-        print("Ничего не найдено.")
+    for row in rows:
+        print(row)
 
 
 def update_contact():
     print("1 - Изменить имя")
     print("2 - Изменить телефон")
-    choice = input("Выберите действие: ").strip()
+    choice = input("Выберите: ")
 
     with connect() as conn:
         with conn.cursor() as cur:
             if choice == "1":
-                phone = input("Введите телефон контакта: ").strip()
-                new_name = input("Введите новое имя: ").strip()
+                phone = input("Введите телефон: ")
+                new_name = input("Введите новое имя: ")
 
-                if phone == "" or new_name == "":
-                    print("Телефон и новое имя не должны быть пустыми.")
-                    return
-
-                query = """
-                UPDATE phonebook
-                SET username = %s
-                WHERE phone = %s
-                """
-                cur.execute(query, (new_name, phone))
-
-                if cur.rowcount > 0:
-                    print("Имя обновлено.")
-                else:
-                    print("Контакт не найден.")
+                cur.execute(
+                    "UPDATE phonebook SET username = %s WHERE phone = %s",
+                    (new_name, phone)
+                )
+                print("Имя изменено")
 
             elif choice == "2":
-                name = input("Введите имя контакта: ").strip()
-                new_phone = input("Введите новый телефон: ").strip()
+                name = input("Введите имя: ")
+                new_phone = input("Введите новый телефон: ")
 
-                if name == "" or new_phone == "":
-                    print("Имя и новый телефон не должны быть пустыми.")
-                    return
-
-                query = """
-                UPDATE phonebook
-                SET phone = %s
-                WHERE username = %s
-                """
-                cur.execute(query, (new_phone, name))
-
-                if cur.rowcount > 0:
-                    print("Телефон обновлён.")
-                else:
-                    print("Контакт не найден.")
+                cur.execute(
+                    "UPDATE phonebook SET phone = %s WHERE username = %s",
+                    (new_phone, name)
+                )
+                print("Телефон изменен")
 
             else:
-                print("Неверный выбор.")
+                print("Неверный выбор")
 
 
 def delete_contact():
     print("1 - Удалить по имени")
     print("2 - Удалить по телефону")
-    choice = input("Выберите действие: ").strip()
+    choice = input("Выберите: ")
 
     with connect() as conn:
         with conn.cursor() as cur:
             if choice == "1":
-                name = input("Введите имя: ").strip()
-
-                if name == "":
-                    print("Имя не должно быть пустым.")
-                    return
-
-                query = "DELETE FROM phonebook WHERE username = %s"
-                cur.execute(query, (name,))
-
-                if cur.rowcount > 0:
-                    print("Контакт удалён.")
-                else:
-                    print("Контакт не найден.")
+                name = input("Введите имя: ")
+                cur.execute("DELETE FROM phonebook WHERE username = %s", (name,))
+                print("Контакт удален")
 
             elif choice == "2":
-                phone = input("Введите телефон: ").strip()
-
-                if phone == "":
-                    print("Телефон не должен быть пустым.")
-                    return
-
-                query = "DELETE FROM phonebook WHERE phone = %s"
-                cur.execute(query, (phone,))
-
-                if cur.rowcount > 0:
-                    print("Контакт удалён.")
-                else:
-                    print("Контакт не найден.")
+                phone = input("Введите телефон: ")
+                cur.execute("DELETE FROM phonebook WHERE phone = %s", (phone,))
+                print("Контакт удален")
 
             else:
-                print("Неверный выбор.")
+                print("Неверный выбор")
 
 
 def menu():
     create_table()
 
     while True:
-        print("\n===== PHONEBOOK =====")
-        print("1 - Добавить контакт вручную")
-        print("2 - Загрузить контакты из CSV")
+        print("\nPHONEBOOK")
+        print("1 - Добавить контакт")
+        print("2 - Загрузить из CSV")
         print("3 - Показать все контакты")
         print("4 - Найти по имени")
         print("5 - Найти по началу номера")
-        print("6 - Обновить контакт")
+        print("6 - Изменить контакт")
         print("7 - Удалить контакт")
         print("0 - Выход")
 
-        choice = input("Введите номер действия: ").strip()
+        choice = input("Введите номер: ")
 
         if choice == "1":
-            insert_from_console()
+            add_contact()
         elif choice == "2":
             insert_from_csv()
         elif choice == "3":
@@ -251,10 +172,10 @@ def menu():
         elif choice == "7":
             delete_contact()
         elif choice == "0":
-            print("Программа завершена.")
+            print("Выход")
             break
         else:
-            print("Неправильный ввод. Попробуйте снова.")
+            print("Неверный ввод")
 
 
 menu()
