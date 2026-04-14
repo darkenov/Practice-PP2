@@ -2,67 +2,66 @@ import pygame
 import datetime
 import os
 
-WHITE = (255, 255, 255)
-
 BASE_DIR = os.path.dirname(__file__)
 IMAGES_DIR = os.path.join(BASE_DIR, "images")
 
-# Центры объектов на экране
-CLOCK_BG_CENTER = (600, 340)
-MICKEY_CENTER = (600, 320)
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
 
-# Точки вращения рук
-# левая рука = секунды
-# правая рука = минуты
-LEFT_HAND_CENTER = (575, 300)
-RIGHT_HAND_CENTER = (640, 300)
+# Центр часов
+CENTER = (600, 320)
 
 
-def load_assets():
-    image_surface = pygame.image.load(os.path.join(IMAGES_DIR, "clock.png")).convert_alpha()
-    mickey = pygame.image.load(os.path.join(IMAGES_DIR, "mUmrP.png")).convert_alpha()
-    hand_l = pygame.image.load(os.path.join(IMAGES_DIR, "hand_left.png")).convert_alpha()
-    hand_r = pygame.image.load(os.path.join(IMAGES_DIR, "hand_right.png")).convert_alpha()
+def load_images():
+    clock_img = pygame.image.load(os.path.join(IMAGES_DIR, "clock.png")).convert_alpha()
+    mickey_img = pygame.image.load(os.path.join(IMAGES_DIR, "mUmrP.png")).convert_alpha()
+    left_hand = pygame.image.load(os.path.join(IMAGES_DIR, "hand_left.png")).convert_alpha()
+    right_hand = pygame.image.load(os.path.join(IMAGES_DIR, "hand_right.png")).convert_alpha()
 
-    resized_image = pygame.transform.scale(image_surface, (800, 600))
-    res_mickey = pygame.transform.scale(mickey, (350, 350))
+    clock_img = pygame.transform.scale(clock_img, (800, 600))
+    mickey_img = pygame.transform.scale(mickey_img, (350, 350))
+    left_hand = pygame.transform.scale(left_hand, (120, 120))
+    right_hand = pygame.transform.scale(right_hand, (120, 120))
 
-    # Средний размер рук
-    hand_l_base = pygame.transform.scale(hand_l, (140, 140))
-    hand_r_base = pygame.transform.scale(hand_r, (160, 160))
-
-    return {
-        "clock_bg": resized_image,
-        "mickey": res_mickey,
-        "hand_left": hand_l_base,
-        "hand_right": hand_r_base
-    }
+    return clock_img, mickey_img, left_hand, right_hand
 
 
-def draw_clock(screen, assets):
+def draw_hand(screen, image, angle, pivot_x, pivot_y):
+    x = CENTER[0] - pivot_x
+    y = CENTER[1] - pivot_y
+
+    rect = image.get_rect(topleft=(x, y))
+    offset = pygame.math.Vector2(CENTER) - rect.center
+    rotated_offset = offset.rotate(angle)
+
+    new_center = (CENTER[0] - rotated_offset.x, CENTER[1] - rotated_offset.y)
+
+    rotated_image = pygame.transform.rotate(image, angle)
+    rotated_rect = rotated_image.get_rect(center=new_center)
+
+    screen.blit(rotated_image, rotated_rect)
+
+
+def draw_clock(screen, font, clock_img, mickey_img, left_hand, right_hand):
     now = datetime.datetime.now()
-    m = now.minute
-    s = now.second
+    minute = now.minute
+    second = now.second
 
-    # По заданию:
-    # правая рука = минуты
-    # левая рука = секунды
-    minutes_angle = -(m * 6 + s * 0.1)
-    seconds_angle = -(s * 6)
-
-    rotated_minutes = pygame.transform.rotate(assets["hand_right"], minutes_angle)
-    rotated_seconds = pygame.transform.rotate(assets["hand_left"], seconds_angle)
-
-    minutes_rect = rotated_minutes.get_rect(center=RIGHT_HAND_CENTER)
-    seconds_rect = rotated_seconds.get_rect(center=LEFT_HAND_CENTER)
+    minute_angle = -(minute * 6)
+    second_angle = -(second * 6)
 
     screen.fill(WHITE)
 
-    image_rect = assets["clock_bg"].get_rect(center=CLOCK_BG_CENTER)
-    screen.blit(assets["clock_bg"], image_rect)
+    # фон часов
+    screen.blit(clock_img, clock_img.get_rect(center=(600, 340)))
 
-    mic_rect = assets["mickey"].get_rect(center=MICKEY_CENTER)
-    screen.blit(assets["mickey"], mic_rect)
+    # сам Микки
+    screen.blit(mickey_img, mickey_img.get_rect(center=(600, 320)))
 
-    screen.blit(rotated_minutes, minutes_rect)
-    screen.blit(rotated_seconds, seconds_rect)
+    # руки поверх Микки
+    draw_hand(screen, left_hand, second_angle, 95, 60)   # левая рука = секунды
+    draw_hand(screen, right_hand, minute_angle, 35, 65)  # правая рука = минуты
+
+    # время внизу
+    text = font.render(now.strftime("%M:%S"), True, BLACK)
+    screen.blit(text, text.get_rect(center=(600, 640)))
