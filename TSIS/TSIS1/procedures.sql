@@ -6,18 +6,16 @@ CREATE OR REPLACE PROCEDURE add_phone(
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_contact_id INTEGER;
+    c_id INTEGER;
 BEGIN
-    SELECT id INTO v_contact_id
+    SELECT id INTO c_id
     FROM contacts
     WHERE name = p_contact_name;
 
-    IF v_contact_id IS NULL THEN
-        RAISE EXCEPTION 'Contact not found';
+    IF c_id IS NOT NULL THEN
+        INSERT INTO phones(contact_id, phone, type)
+        VALUES (c_id, p_phone, p_type);
     END IF;
-
-    INSERT INTO phones(contact_id, phone, type)
-    VALUES (v_contact_id, p_phone, p_type);
 END;
 $$;
 
@@ -29,19 +27,20 @@ CREATE OR REPLACE PROCEDURE move_to_group(
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_group_id INTEGER;
+    g_id INTEGER;
 BEGIN
-    SELECT id INTO v_group_id
+    SELECT id INTO g_id
     FROM groups
     WHERE name = p_group_name;
 
-    IF v_group_id IS NULL THEN
-        INSERT INTO groups(name) VALUES (p_group_name)
-        RETURNING id INTO v_group_id;
+    IF g_id IS NULL THEN
+        INSERT INTO groups(name)
+        VALUES (p_group_name)
+        RETURNING id INTO g_id;
     END IF;
 
     UPDATE contacts
-    SET group_id = v_group_id
+    SET group_id = g_id
     WHERE name = p_contact_name;
 END;
 $$;
@@ -53,15 +52,14 @@ RETURNS TABLE(
     name VARCHAR,
     email VARCHAR,
     birthday DATE,
-    group_name VARCHAR,
-    created_at TIMESTAMP
+    group_name VARCHAR
 )
 LANGUAGE sql
 AS $$
-    SELECT DISTINCT c.id, c.name, c.email, c.birthday, g.name, c.created_at
+    SELECT DISTINCT c.id, c.name, c.email, c.birthday, g.name
     FROM contacts c
     LEFT JOIN groups g ON c.group_id = g.id
-    LEFT JOIN phones p ON p.contact_id = c.id
+    LEFT JOIN phones p ON c.id = p.contact_id
     WHERE c.name ILIKE '%' || p_query || '%'
        OR c.email ILIKE '%' || p_query || '%'
        OR p.phone ILIKE '%' || p_query || '%';
@@ -74,12 +72,11 @@ RETURNS TABLE(
     name VARCHAR,
     email VARCHAR,
     birthday DATE,
-    group_name VARCHAR,
-    created_at TIMESTAMP
+    group_name VARCHAR
 )
 LANGUAGE sql
 AS $$
-    SELECT c.id, c.name, c.email, c.birthday, g.name, c.created_at
+    SELECT c.id, c.name, c.email, c.birthday, g.name
     FROM contacts c
     LEFT JOIN groups g ON c.group_id = g.id
     ORDER BY c.name

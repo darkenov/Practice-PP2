@@ -30,22 +30,9 @@ def free_cell(snake, obstacles, reserved=None):
 
 def new_food(snake, obstacles):
     weight = random.choice([1, 2, 3])
-
-    if weight == 1:
-        color = YELLOW
-    elif weight == 2:
-        color = ORANGE
-    else:
-        color = RED
-
+    color = YELLOW if weight == 1 else ORANGE if weight == 2 else RED
     pos = free_cell(snake, obstacles)
-
-    return {
-        "pos": pos,
-        "weight": weight,
-        "color": color,
-        "born": pygame.time.get_ticks()
-    }
+    return {"pos": pos, "weight": weight, "color": color, "born": pygame.time.get_ticks()}
 
 
 def new_poison(snake, obstacles, food_pos):
@@ -55,22 +42,9 @@ def new_poison(snake, obstacles, food_pos):
 
 def new_bonus(snake, obstacles, food_pos, poison_pos):
     kind = random.choice(["speed_up", "slow_down", "shield"])
-
-    if kind == "speed_up":
-        color = BLUE
-    elif kind == "slow_down":
-        color = CYAN
-    else:
-        color = YELLOW
-
+    color = BLUE if kind == "speed_up" else CYAN if kind == "slow_down" else YELLOW
     pos = free_cell(snake, obstacles, [food_pos, poison_pos])
-
-    return {
-        "pos": pos,
-        "kind": kind,
-        "color": color,
-        "born": pygame.time.get_ticks()
-    }
+    return {"pos": pos, "kind": kind, "color": color, "born": pygame.time.get_ticks()}
 
 
 def generate_obstacles(level, snake):
@@ -79,12 +53,8 @@ def generate_obstacles(level, snake):
     if level < 3:
         return obstacles
 
-    count = level
-
-    while len(obstacles) < count:
+    while len(obstacles) < level:
         pos = free_cell(snake, obstacles)
-
-        # не ставим слишком близко к голове
         if abs(pos[0] - snake[0][0]) > 60 or abs(pos[1] - snake[0][1]) > 60:
             obstacles.append(pos)
 
@@ -98,8 +68,8 @@ def run_snake(screen, font, username, settings, personal_best):
 
     score = 0
     level = 1
+    speed = 8
     base_speed = 8
-    speed = base_speed
     grow = 0
 
     snake_color = tuple(settings["snake_color"])
@@ -141,19 +111,15 @@ def run_snake(screen, font, username, settings, personal_best):
                     dx = 0
                     dy = CELL
 
-        # еда исчезает
         if now - food["born"] > food_life:
             food = new_food(snake, obstacles)
 
-        # бонус исчезает
         if bonus and now - bonus["born"] > bonus_life:
             bonus = None
 
-        # иногда создаём бонус
         if bonus is None and random.randint(1, 150) == 1:
             bonus = new_bonus(snake, obstacles, food["pos"], poison["pos"])
 
-        # если временный бонус закончился
         if active_bonus in ["speed_up", "slow_down"] and now > bonus_until:
             active_bonus = None
             speed = base_speed + (level - 1) * 2
@@ -174,7 +140,6 @@ def run_snake(screen, font, username, settings, personal_best):
 
         snake.insert(0, new_head)
 
-        # обычная еда
         if new_head == food["pos"]:
             score += food["weight"]
             grow += food["weight"]
@@ -184,14 +149,11 @@ def run_snake(screen, font, username, settings, personal_best):
 
             level = score // 5 + 1
             speed = base_speed + (level - 1) * 2
-
             obstacles = generate_obstacles(level, snake)
 
-        # ядовитая еда
         elif new_head == poison["pos"]:
             if len(snake) <= 3:
                 break
-
             if len(snake) > 1:
                 snake.pop()
             if len(snake) > 1:
@@ -199,7 +161,6 @@ def run_snake(screen, font, username, settings, personal_best):
 
             poison = new_poison(snake, obstacles, food["pos"])
 
-        # бонус
         elif bonus and new_head == bonus["pos"]:
             if bonus["kind"] == "speed_up":
                 active_bonus = "speed_up"

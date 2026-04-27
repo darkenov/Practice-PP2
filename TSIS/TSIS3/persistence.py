@@ -28,5 +28,6 @@ def save_score(name, score, distance):
     data = load_leaderboard()
     data.append({"name": name, "score": score, "distance": distance})
     data = sorted(data, key=lambda x: x["score"], reverse=True)[:10]
+
     with open(LEADERBOARD_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)

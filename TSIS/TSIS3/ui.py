@@ -22,8 +22,7 @@ def menu_screen(screen, font):
 
     while True:
         screen.fill(WHITE)
-        title = font.render("TSIS3 Racer", True, BLACK)
-        screen.blit(title, (350, 100))
+        screen.blit(font.render("TSIS3 Racer", True, BLACK), (350, 100))
 
         for name, rect in buttons.items():
             draw_button(screen, rect, name.capitalize(), font)
@@ -44,8 +43,7 @@ def leaderboard_screen(screen, font, data):
 
     while True:
         screen.fill(WHITE)
-        title = font.render("Top 10", True, BLACK)
-        screen.blit(title, (400, 40))
+        screen.blit(font.render("Top 10", True, BLACK), (400, 40))
 
         y = 100
         for i, item in enumerate(data, 1):

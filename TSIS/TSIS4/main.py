@@ -4,8 +4,7 @@ from game import run_snake
 
 pygame.init()
 
-WIDTH, HEIGHT = 800, 600
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
+screen = pygame.display.set_mode((800, 600))
 pygame.display.set_caption("TSIS4 Snake")
 font = pygame.font.SysFont("Arial", 28)
 
@@ -15,7 +14,6 @@ settings = load_settings()
 
 def ask_username():
     text = ""
-
     while True:
         screen.fill((255, 255, 255))
         screen.blit(font.render("Enter username:", True, (0, 0, 0)), (280, 220))
@@ -69,8 +67,8 @@ def leaderboard_screen():
 
         y = 100
         for i, row in enumerate(data, 1):
-            text = f"{i}. {row[0]} | score: {row[1]} | level: {row[2]} | {row[3].strftime('%Y-%m-%d')}"
-            screen.blit(font.render(text, True, (0, 0, 0)), (60, y))
+            text = f"{i}. {row[0]} | score: {row[1]} | level: {row[2]}"
+            screen.blit(font.render(text, True, (0, 0, 0)), (100, y))
             y += 40
 
         screen.blit(font.render("Press ESC", True, (0, 0, 0)), (320, 540))
@@ -134,39 +132,28 @@ while running:
             running = False
             continue
 
-        play_again = True
-        while play_again:
-            best = get_best_score(username)
-            result = run_snake(screen, font, username, settings, best)
+        best = get_best_score(username)
+        result = run_snake(screen, font, username, settings, best)
 
-            if result is None:
-                running = False
-                break
-
+        if result:
             save_result(username, result["score"], result["level"])
             new_best = get_best_score(username)
 
             waiting = True
-            play_again = False
-
             while waiting:
                 screen.fill((255, 255, 255))
                 screen.blit(font.render("Game Over", True, (0, 0, 0)), (320, 140))
                 screen.blit(font.render(f"Score: {result['score']}", True, (0, 0, 0)), (300, 220))
                 screen.blit(font.render(f"Level: {result['level']}", True, (0, 0, 0)), (300, 260))
-                screen.blit(font.render(f"Personal best: {new_best}", True, (0, 0, 0)), (300, 300))
-                screen.blit(font.render("R - Retry | M - Menu", True, (0, 0, 0)), (250, 380))
+                screen.blit(font.render(f"Personal best: {new_best}", True, (0, 0, 0)), (240, 300))
+                screen.blit(font.render("Press M for menu", True, (0, 0, 0)), (280, 380))
                 pygame.display.flip()
 
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
                         waiting = False
                         running = False
-                    if event.type == pygame.KEYDOWN:
-                        if event.key == pygame.K_r:
-                            play_again = True
-                            waiting = False
-                        elif event.key == pygame.K_m:
-                            waiting = False
+                    if event.type == pygame.KEYDOWN and event.key == pygame.K_m:
+                        waiting = False
 
 pygame.quit()
