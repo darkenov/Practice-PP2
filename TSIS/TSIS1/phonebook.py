@@ -1,13 +1,21 @@
 import csv
 import json
+import os
 from connect import connect_db
+
+
+BASE_DIR = os.path.dirname(__file__)
+
+
+def full_path(filename):
+    return os.path.join(BASE_DIR, filename)
 
 
 def run_sql(filename):
     conn = connect_db()
     cur = conn.cursor()
 
-    with open(filename, "r", encoding="utf-8") as f:
+    with open(full_path(filename), "r", encoding="utf-8") as f:
         sql = f.read()
         cur.execute(sql)
 
@@ -25,20 +33,47 @@ def get_group_id(cur, group_name):
         return row[0]
 
     cur.execute("INSERT INTO groups(name) VALUES (%s) RETURNING id", (group_name,))
-    group_id = cur.fetchone()[0]
-    return group_id
+    return cur.fetchone()[0]
+
+
+def show_rows(rows):
+    if not rows:
+        print("No contacts found.")
+        return
+
+    for row in rows:
+        print("\nID:", row[0])
+        print("Name:", row[1])
+        print("Email:", row[2])
+        print("Birthday:", row[3])
+        print("Group:", row[4])
 
 
 def add_contact():
     conn = connect_db()
     cur = conn.cursor()
 
-    name = input("Name: ")
-    email = input("Email: ")
-    birthday = input("Birthday (YYYY-MM-DD): ")
-    group_name = input("Group: ")
-    phone = input("Phone: ")
-    phone_type = input("Type (home/work/mobile): ")
+    print("\nGroup: Family / Work / Friend / Other")
+    print("Phone type: home / work / mobile")
+
+    name = input("Name: ").strip()
+    email = input("Email: ").strip()
+    birthday = input("Birthday (YYYY-MM-DD): ").strip()
+    group_name = input("Group: ").strip()
+    phone = input("Phone: ").strip()
+    phone_type = input("Type (home/work/mobile): ").strip()
+
+    if not name:
+        print("Name is required.")
+        cur.close()
+        conn.close()
+        return
+
+    if phone_type not in ["home", "work", "mobile"]:
+        print("Wrong phone type.")
+        cur.close()
+        conn.close()
+        return
 
     group_id = get_group_id(cur, group_name)
 
@@ -71,19 +106,6 @@ def add_contact():
     print("Contact saved.")
 
 
-def show_contacts(rows):
-    if not rows:
-        print("No contacts.")
-        return
-
-    for row in rows:
-        print("\nID:", row[0])
-        print("Name:", row[1])
-        print("Email:", row[2])
-        print("Birthday:", row[3])
-        print("Group:", row[4])
-
-
 def show_all():
     conn = connect_db()
     cur = conn.cursor()
@@ -96,21 +118,20 @@ def show_all():
     """)
 
     rows = cur.fetchall()
-    show_contacts(rows)
+    show_rows(rows)
 
     cur.close()
     conn.close()
 
 
-def search_contacts():
+def search_all():
     conn = connect_db()
     cur = conn.cursor()
 
-    text = input("Search text: ")
+    text = input("Search text: ").strip()
     cur.execute("SELECT * FROM search_contacts(%s)", (text,))
     rows = cur.fetchall()
-
-    show_contacts(rows)
+    show_rows(rows)
 
     cur.close()
     conn.close()
@@ -120,7 +141,7 @@ def filter_by_group():
     conn = connect_db()
     cur = conn.cursor()
 
-    group_name = input("Group name: ")
+    group_name = input("Group name: ").strip()
 
     cur.execute("""
         SELECT c.id, c.name, c.email, c.birthday, g.name
@@ -131,7 +152,7 @@ def filter_by_group():
     """, (group_name,))
 
     rows = cur.fetchall()
-    show_contacts(rows)
+    show_rows(rows)
 
     cur.close()
     conn.close()
@@ -141,7 +162,7 @@ def search_by_email():
     conn = connect_db()
     cur = conn.cursor()
 
-    text = input("Email text: ")
+    text = input("Email text: ").strip()
 
     cur.execute("""
         SELECT c.id, c.name, c.email, c.birthday, g.name
@@ -152,7 +173,7 @@ def search_by_email():
     """, (f"%{text}%",))
 
     rows = cur.fetchall()
-    show_contacts(rows)
+    show_rows(rows)
 
     cur.close()
     conn.close()
@@ -162,14 +183,16 @@ def sort_contacts():
     conn = connect_db()
     cur = conn.cursor()
 
-    print("1 - name")
-    print("2 - birthday")
-    choice = input("Choose sort: ")
+    print("1 - Sort by name")
+    print("2 - Sort by birthday")
+    print("3 - Sort by created_at")
+    choice = input("Choose: ").strip()
 
+    order_field = "name"
     if choice == "2":
         order_field = "birthday"
-    else:
-        order_field = "name"
+    elif choice == "3":
+        order_field = "created_at"
 
     cur.execute(f"""
         SELECT c.id, c.name, c.email, c.birthday, g.name
@@ -179,7 +202,7 @@ def sort_contacts():
     """)
 
     rows = cur.fetchall()
-    show_contacts(rows)
+    show_rows(rows)
 
     cur.close()
     conn.close()
@@ -199,9 +222,9 @@ def paginate():
         rows = cur.fetchall()
 
         print(f"\n--- Page {page + 1} ---")
-        show_contacts(rows)
+        show_rows(rows)
 
-        cmd = input("next / prev / quit: ").lower()
+        cmd = input("next / prev / quit: ").strip().lower()
 
         if cmd == "next":
             page += 1
@@ -226,10 +249,10 @@ def export_json():
         ORDER BY c.name
     """)
 
-    contacts = cur.fetchall()
-    result = []
+    rows = cur.fetchall()
+    data = []
 
-    for row in contacts:
+    for row in rows:
         contact_id = row[0]
 
         cur.execute("SELECT phone, type FROM phones WHERE contact_id = %s", (contact_id,))
@@ -249,10 +272,10 @@ def export_json():
                 "type": p[1]
             })
 
-        result.append(item)
+        data.append(item)
 
-    with open("contacts_export.json", "w", encoding="utf-8") as f:
-        json.dump(result, f, indent=4)
+    with open(full_path("contacts_export.json"), "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=4)
 
     cur.close()
     conn.close()
@@ -260,9 +283,9 @@ def export_json():
 
 
 def import_json():
-    filename = input("JSON file: ")
+    filename = input("JSON file name: ").strip()
 
-    with open(filename, "r", encoding="utf-8") as f:
+    with open(full_path(filename), "r", encoding="utf-8") as f:
         data = json.load(f)
 
     conn = connect_db()
@@ -280,7 +303,8 @@ def import_json():
         row = cur.fetchone()
 
         if row:
-            answer = input(f"{name} exists. skip or overwrite? ")
+            answer = input(f"{name} exists. skip or overwrite? ").strip().lower()
+
             if answer == "skip":
                 continue
 
@@ -315,12 +339,12 @@ def import_json():
 
 
 def import_csv():
-    filename = input("CSV file: ")
+    filename = input("CSV file name: ").strip()
 
     conn = connect_db()
     cur = conn.cursor()
 
-    with open(filename, newline="", encoding="utf-8") as f:
+    with open(full_path(filename), newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
 
         for row in reader:
@@ -366,9 +390,15 @@ def add_phone():
     conn = connect_db()
     cur = conn.cursor()
 
-    name = input("Contact name: ")
-    phone = input("New phone: ")
-    phone_type = input("Type (home/work/mobile): ")
+    name = input("Contact name: ").strip()
+    phone = input("New phone: ").strip()
+    phone_type = input("Type (home/work/mobile): ").strip()
+
+    if phone_type not in ["home", "work", "mobile"]:
+        print("Wrong phone type.")
+        cur.close()
+        conn.close()
+        return
 
     cur.execute("CALL add_phone(%s, %s, %s)", (name, phone, phone_type))
 
@@ -382,8 +412,8 @@ def move_group():
     conn = connect_db()
     cur = conn.cursor()
 
-    name = input("Contact name: ")
-    group_name = input("New group: ")
+    name = input("Contact name: ").strip()
+    group_name = input("New group: ").strip()
 
     cur.execute("CALL move_to_group(%s, %s)", (name, group_name))
 
@@ -398,20 +428,20 @@ def menu():
         print("\n1 - Create tables")
         print("2 - Create procedures")
         print("3 - Add contact")
-        print("4 - Show all")
-        print("5 - Search")
+        print("4 - Show all contacts")
+        print("5 - Search contacts")
         print("6 - Filter by group")
         print("7 - Search by email")
-        print("8 - Sort")
-        print("9 - Pages")
+        print("8 - Sort contacts")
+        print("9 - Pagination")
         print("10 - Export JSON")
         print("11 - Import JSON")
         print("12 - Import CSV")
         print("13 - Add phone")
-        print("14 - Move group")
+        print("14 - Move to group")
         print("0 - Exit")
 
-        choice = input("Choose: ")
+        choice = input("Choose: ").strip()
 
         if choice == "1":
             run_sql("schema.sql")
@@ -422,7 +452,7 @@ def menu():
         elif choice == "4":
             show_all()
         elif choice == "5":
-            search_contacts()
+            search_all()
         elif choice == "6":
             filter_by_group()
         elif choice == "7":

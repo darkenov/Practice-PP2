@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS contacts (
     name VARCHAR(100) UNIQUE NOT NULL,
     email VARCHAR(100),
     birthday DATE,
-    group_id INTEGER REFERENCES groups(id)
+    group_id INTEGER REFERENCES groups(id),
+    created_at TIMESTAMP DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS phones (
